@@ -43,7 +43,7 @@ function readJsonStorage<T>(key: string): T | null {
   }
 
   try {
-    const rawValue = window.localStorage.getItem(key);
+    const rawValue = window.sessionStorage.getItem(key);
     return rawValue ? (JSON.parse(rawValue) as T) : null;
   } catch {
     return null;
@@ -63,7 +63,7 @@ export function storeAuthSession(session: AuthSession) {
     return;
   }
 
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  window.sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 }
 
 export function clearAuthSession() {
@@ -72,6 +72,8 @@ export function clearAuthSession() {
   }
 
   useAuthStore.getState().clearAuth();
+  window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  window.sessionStorage.removeItem(AUTH_STORE_KEY);
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
   window.localStorage.removeItem(AUTH_STORE_KEY);
 }
@@ -187,15 +189,14 @@ export async function fetchCurrentProfile(token: string) {
     weight: dbWeight ? `${dbWeight} lbs` : "",
     role: (isArray ? userRow[6] : userRow.role) || "client",
     
-    // UI Defaults
-    city: "Jersey City, NJ",
+    city: "",
     membership: "Member Portal",
-    coachName: "Jordan Rivera",
-    pronouns: "she/her",
-    height: "5'8\"",
-    goal: "Build lean muscle while improving recovery consistency.",
-    emergencyContact: "Avery Chen · (555) 884-1102",
-    bio: "Focused on strength, mobility, and sustainable routines that fit around grad school and work."
+    coachName: "",
+    pronouns: "",
+    height: (isArray ? userRow[10] : userRow.height) ? String(isArray ? userRow[10] : userRow.height) : "",
+    goal: "",
+    emergencyContact: "",
+    bio: ""
   };
 
   return {
@@ -207,8 +208,6 @@ export async function fetchCurrentProfile(token: string) {
 export async function updateCurrentProfile(token: string, profile: any) {
   const session = getStoredAuthSession();
   if (!session || !session.user) throw new Error("No active session found.");
-  const userId = session.user.id || (session.user as any).user_id || (session.user as any).userId;
-
   // Map the frontend fields to the strict MySQL columns
   const backendPayload: Record<string, any> = {};
 
@@ -239,22 +238,10 @@ export async function updateCurrentProfile(token: string, profile: any) {
     backendPayload.gender = profile.gender;
   }
 
-  // FIX 3: The Dual-Route Fallback Strategy
-  try {
-    // Attempt 1: Try hitting the new JWT route you added to auth_controller.py
-    await apiRequest<any>("/auth/update", { 
-      method: "PATCH", 
-      body: JSON.stringify(backendPayload) 
-    }, token);
-    
-  } catch (err) {
-    // Attempt 2: If the new route returns 404, fallback to the original update_user.py route
-    console.warn("Primary route failed, falling back to /customers/ route...");
-    await apiRequest<any>(`/customers/${userId}`, { 
-      method: "PATCH", 
-      body: JSON.stringify(backendPayload) 
-    }, token);
-  }
+  await apiRequest<any>("/auth/update", {
+    method: "PATCH",
+    body: JSON.stringify(backendPayload)
+  }, token);
 
   // Return the draft back to the UI to update the screen
   return { profile };

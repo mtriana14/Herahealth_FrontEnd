@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Dumbbell, Send } from "lucide-react";
 import { io, Socket } from "socket.io-client";
 import NavComponent from "@/components/NavComponent";
@@ -17,7 +18,7 @@ interface ConversationWithName extends Conversation {
 }
 
 export default function CoachChat() {
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const coachUserId = user?.id ?? user?.user_id;
 
   const [conversations, setConversations] = useState<ConversationWithName[]>([]);
@@ -27,6 +28,32 @@ export default function CoachChat() {
   const [loading, setLoading] = useState(true);
   const socketRef = useRef<Socket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const selectConversation = useCallback(async (convo: ConversationWithName) => {
+    setSelectedConvoId(convo.MessageList_id);
+
+    const msgs = await chatService.getMessages(convo.MessageList_id);
+    setMessages(msgs);
+
+    if (socketRef.current) {
+      socketRef.current.off("new_message");
+      socketRef.current.off("connect");
+      socketRef.current.disconnect();
+    }
+
+    const socket = io(SOCKET_URL, {
+      transports: ["websocket", "polling"],
+      auth: { token },
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      socket.emit("join", { conversation_id: convo.MessageList_id });
+    });
+    socket.on("new_message", (msg: ChatMessage) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+  }, [token]);
 
   useEffect(() => {
     if (!coachUserId) return;
@@ -73,34 +100,11 @@ export default function CoachChat() {
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, [coachUserId]);
+  }, [coachUserId, selectConversation]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  const selectConversation = async (convo: ConversationWithName) => {
-    setSelectedConvoId(convo.MessageList_id);
-
-    const msgs = await chatService.getMessages(convo.MessageList_id);
-    setMessages(msgs);
-
-    if (socketRef.current) {
-      socketRef.current.off("new_message");
-      socketRef.current.off("connect");
-      socketRef.current.disconnect();
-    }
-
-    const socket = io(SOCKET_URL, { transports: ["websocket", "polling"] });
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      socket.emit("join", { conversation_id: convo.MessageList_id });
-    });
-    socket.on("new_message", (msg: ChatMessage) => {
-      setMessages((prev) => [...prev, msg]);
-    });
-  };
 
   const handleSelect = async (convo: ConversationWithName) => {
     await selectConversation(convo);
@@ -111,7 +115,6 @@ export default function CoachChat() {
 
     socketRef.current.emit("send_message", {
       conversation_id: selectedConvoId,
-      sender_id: Number(coachUserId),
       content: input.trim(),
     });
 
@@ -128,12 +131,12 @@ export default function CoachChat() {
     <div className="hh-dash-root">
       <aside className="hh-sidebar">
         <div className="hh-sidebar__header">
-          <a href="/" className="hh-logo">
+          <Link href="/" className="hh-logo">
             <div className="hh-logo__icon hh-logo__icon--md">
               <Dumbbell size={16} color="white" />
             </div>
             <span className="hh-logo__text hh-logo__text--md">HeraHealth</span>
-          </a>
+          </Link>
           <span className="hh-badge hh-badge--sm">Coach Portal</span>
         </div>
 
@@ -143,7 +146,7 @@ export default function CoachChat() {
           <SignOutButton className="hh-sidebar__back hh-sidebar__logout hh-sidebar__logout-button">
             Sign Out
           </SignOutButton>
-          <a href="/" className="hh-sidebar__back">← Back to Home</a>
+          <Link href="/" className="hh-sidebar__back">← Back to Home</Link>
         </div>
       </aside>
 

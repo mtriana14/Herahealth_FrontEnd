@@ -11,7 +11,7 @@ import { useAuthStore } from "@/store/authStore";
 const SOCKET_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").replace(/\/api\/?$/, "");
 
 export default function ClientChatPage() {
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const userId = user?.id ?? user?.user_id;
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -51,7 +51,10 @@ export default function ClientChatPage() {
         if (cleanedUp) return;
         setMessages(msgs);
 
-        const socket = io(SOCKET_URL, { transports: ["websocket", "polling"] });
+        const socket = io(SOCKET_URL, {
+          transports: ["websocket", "polling"],
+          auth: { token },
+        });
         localSocket = socket;
         socketRef.current = socket;
 
@@ -81,7 +84,7 @@ export default function ClientChatPage() {
       localSocket?.disconnect();
       socketRef.current = null;
     };
-  }, [userId]);
+  }, [token, userId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -92,7 +95,6 @@ export default function ClientChatPage() {
 
     socketRef.current.emit("send_message", {
       conversation_id: conversation.MessageList_id,
-      sender_id: Number(userId),
       content: input.trim(),
     });
 

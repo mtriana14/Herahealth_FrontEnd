@@ -21,7 +21,6 @@ export default function BillingPage() {
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
-  const [cvc, setCvc] = useState("");
   const [saveCard, setSaveCard] = useState(false);
   const { user } = useAuthStore();
   const userId = user?.id ?? user?.user_id;
@@ -39,7 +38,7 @@ export default function BillingPage() {
         setSavedCards(cardResponse.cards);
         if (coachResponse.coaches[0]) {
           setSelectedCoachId(String(coachResponse.coaches[0].coach_id));
-          setAmount(String(coachResponse.coaches[0].hourly_rate ?? 150));
+          setAmount(String(coachResponse.coaches[0].monthly_cost));
         }
         if (cardResponse.cards.length > 0) {
           setPaymentMethod("saved");
@@ -55,8 +54,7 @@ export default function BillingPage() {
 
   const handleCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/\D/g, "");
-    if (val.length > 16) val = val.slice(0, 16);
-    val = val.replace(/(\d{4})(?=\d)/g, "$1 ");
+    if (val.length > 4) val = val.slice(0, 4);
     setCardNumber(val);
   };
 
@@ -70,12 +68,6 @@ export default function BillingPage() {
       val = val.slice(0, 2) + (val.length > 2 ? "/" + val.slice(2) : "");
     }
     setExpiry(val);
-  };
-
-  const handleCvcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, "");
-    if (val.length > 4) val = val.slice(0, 4);
-    setCvc(val);
   };
 
   async function handleSubscribe(e: React.SyntheticEvent<HTMLFormElement>) {
@@ -92,16 +84,12 @@ export default function BillingPage() {
     }
 
     if (paymentMethod === "new") {
-      if (cardNumber.replace(/\s/g, "").length < 15) {
-        setError("Please enter a valid card number.");
+      if (cardNumber.length !== 4) {
+        setError("Please enter exactly four digits.");
         return;
       }
       if (expiry.length < 5) {
         setError("Please enter a complete expiry date (MM/YY).");
-        return;
-      }
-      if (cvc.length < 3) {
-        setError("Please enter a valid CVC code.");
         return;
       }
     } else {
@@ -154,12 +142,12 @@ export default function BillingPage() {
           {success ? (
             <div style={{ padding: 24, textAlign: "center", backgroundColor: "rgba(35, 134, 54, 0.1)", borderRadius: 8, border: "1px solid var(--hh-green)" }}>
               <CheckCircle size={32} color="var(--hh-green)" style={{ margin: "0 auto 12px" }} />
-              <h3 style={{ color: "white", marginBottom: 8 }}>Payment Successful</h3>
-              <p className="hh-text-muted">Your subscription is now active.</p>
+              <h3 style={{ color: "white", marginBottom: 8 }}>Demo Subscription Recorded</h3>
+              <p className="hh-text-muted">No real payment was processed.</p>
             </div>
           ) : (
             <form onSubmit={handleSubscribe} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <p className="hh-portal-card-copy">Secure payment processing powered by Stripe.</p>
+              <p className="hh-portal-card-copy">Demo billing only. HeraHealth does not process or store real card details.</p>
               {error ? <p className="hh-error-msg">{error}</p> : null}
 
               {/* Coach selector */}
@@ -171,7 +159,7 @@ export default function BillingPage() {
                   onChange={(event) => {
                     const coach = coaches.find((item) => item.coach_id === Number(event.target.value));
                     setSelectedCoachId(event.target.value);
-                    setAmount(String(coach?.hourly_rate ?? 150));
+                    setAmount(String(coach?.monthly_cost ?? 0));
                   }}
                   style={{ appearance: "auto" }}
                   required
@@ -192,7 +180,7 @@ export default function BillingPage() {
                   type="number"
                   min="1"
                   value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
+                  readOnly
                   required
                 />
               </div>
@@ -243,18 +231,17 @@ export default function BillingPage() {
               {paymentMethod === "new" && (
                 <>
                   <div className="hh-field">
-                    <label className="hh-field__label">Card Number</label>
+                    <label className="hh-field__label">Demo card last four digits</label>
                     <input
                       className="hh-input"
-                      placeholder="•••• •••• •••• 4242"
+                      placeholder="4242"
                       value={cardNumber}
                       onChange={handleCardChange}
                       required
                     />
                   </div>
 
-                  <div style={{ display: "flex", gap: 16 }}>
-                    <div className="hh-field" style={{ flex: 1 }}>
+                  <div className="hh-field">
                       <label className="hh-field__label">Expiry (MM/YY)</label>
                       <input
                         className="hh-input"
@@ -263,18 +250,6 @@ export default function BillingPage() {
                         onChange={handleExpiryChange}
                         required
                       />
-                    </div>
-                    <div className="hh-field" style={{ flex: 1 }}>
-                      <label className="hh-field__label">CVC</label>
-                      <input
-                        className="hh-input"
-                        placeholder="123"
-                        value={cvc}
-                        onChange={handleCvcChange}
-                        required
-                        type="password"
-                      />
-                    </div>
                   </div>
 
                   {/* Save card checkbox */}
@@ -291,7 +266,7 @@ export default function BillingPage() {
               )}
 
               <button type="submit" className="btn btn--primary" disabled={isSubscribing}>
-                {isSubscribing ? "Processing..." : `Pay $${Number(amount || 0).toFixed(2)} / month`}
+                {isSubscribing ? "Recording..." : `Create demo subscription · $${Number(amount || 0).toFixed(2)} / month`}
               </button>
             </form>
           )}

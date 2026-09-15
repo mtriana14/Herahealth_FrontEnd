@@ -94,7 +94,6 @@ export const profileService = {
   getUser: async (userId: number) => {
     const users = await apiClient<Array<UserRow | Record<string, unknown>>>(`getusers?user_id=${userId}`, {
       method: "GET",
-      public: true,
     });
     return { user: normalizeUser(users[0]) };
   },

@@ -27,6 +27,7 @@ export interface BillingCoach {
   user_id?: number;
   name: string;
   specialization: string;
+  monthly_cost: number;
   hourly_rate: number | null;
 }
 

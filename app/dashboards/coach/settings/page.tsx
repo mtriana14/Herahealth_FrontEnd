@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Dumbbell } from "lucide-react";
 
 import NavComponent from "@/components/NavComponent";
@@ -10,6 +11,7 @@ import { profileService } from "@/services/profileService";
 import { useAuthStore } from "@/store/authStore";
 import { getNotifPrefs, setNotifPrefs } from "@/lib/notificationPrefsStorage";
 import { apiClient } from "@/lib/api";
+import { clearAuthSession } from "@/app/lib/api";
 
 const NOTIFICATIONS = [
   { key: "requests", label: "New client requests", sub: "Get notified when a user sends you a request", defaultOn: true },
@@ -19,7 +21,7 @@ const NOTIFICATIONS = [
 ];
 
 export default function CoachSettings() {
-  const { user, clearAuth } = useAuthStore();
+  const { user } = useAuthStore();
   const userId = user?.id ?? user?.user_id;
   const [profile, setProfile] = useState({ first_name: "", last_name: "", email: "", phone: "" });
   const [passwords, setPasswords] = useState({ current_password: "", new_password: "", confirm_password: "" });
@@ -61,7 +63,7 @@ export default function CoachSettings() {
     try {
       setDeactivating(true);
       await apiClient("users/me/deactivate", { method: "PATCH" });
-      clearAuth();
+      clearAuthSession();
       window.location.assign("/");
     } catch (err) {
       setStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to deactivate account." });
@@ -118,12 +120,12 @@ export default function CoachSettings() {
     <div className="hh-dash-root">
       <aside className="hh-sidebar">
         <div className="hh-sidebar__header">
-          <a href="/" className="hh-logo">
+          <Link href="/" className="hh-logo">
             <div className="hh-logo__icon hh-logo__icon--md">
               <Dumbbell size={16} color="white" />
             </div>
             <span className="hh-logo__text hh-logo__text--md">HeraHealth</span>
-          </a>
+          </Link>
           <span className="hh-badge hh-badge--sm">Coach Portal</span>
         </div>
 
@@ -133,7 +135,7 @@ export default function CoachSettings() {
           <SignOutButton className="hh-sidebar__back hh-sidebar__logout hh-sidebar__logout-button">
             Sign Out
           </SignOutButton>
-          <a href="/" className="hh-sidebar__back">← Back to Home</a>
+          <Link href="/" className="hh-sidebar__back">← Back to Home</Link>
         </div>
       </aside>
 
